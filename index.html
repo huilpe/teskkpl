@@ -400,7 +400,7 @@
   </footer>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzYc_45aaT9D-LdjS0C6dUurJZ3j7sBMkNinLQsm_-EuYn2iOwCSG6SjMXOoJNCLHDyOw/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyS98kG9SAnzC1_f6ZeYXw8wGNJHT3Ni9rD-ALpSmPucBdhcAMMuqXRl7obq_Jjz3xu/exec";
     
     const POSKO_LAT = -8.064567;
     const POSKO_LNG = 111.901234;
@@ -413,8 +413,14 @@
     let base64Image = "";
     let rekapDataDpl = { presensi: [], jurnal: [] };
     let listMahasiswaGlobal = [];
+    let optCheckInPosko = null;
+    let optPresensiKegiatan = null;
 
     window.addEventListener("DOMContentLoaded", () => {
+      const selectTipeInit = document.getElementById("tipePresensi");
+      optCheckInPosko = selectTipeInit.querySelector('option[value="Check-In Posko"]');
+      optPresensiKegiatan = selectTipeInit.querySelector('option[value="Presensi Kegiatan"]');
+
       const savedUser = localStorage.getItem("siap_user");
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -484,6 +490,7 @@
         initGPS();
         loadProkerData();
         loadPiketData();
+        checkPresensiHariIni();
       }
     }
 
@@ -623,6 +630,50 @@
       return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
     }
 
+    function getTodayDDMMYYYY() {
+      const now = new Date();
+      const d = ("0" + now.getDate()).slice(-2);
+      const m = ("0" + (now.getMonth() + 1)).slice(-2);
+      const y = now.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+
+    async function checkPresensiHariIni() {
+      if (!currentUser) return;
+      const todayStr = getTodayDDMMYYYY();
+      try {
+        const res = await fetch(`${API_URL}?action=getRekapDpl&tanggal=${todayStr}`);
+        const result = await res.json();
+        if (result.status === "success") {
+          const sudahAda = result.presensi.some(p =>
+            p.nama && p.nama.toLowerCase() === currentUser.nama.toLowerCase() &&
+            (p.status.startsWith("Check-In Posko") || p.status.startsWith("Kegiatan -"))
+          );
+          updateTipePresensiOptions(sudahAda);
+        }
+      } catch (err) {
+        // Kalau gagal cek status ke server, biarkan pilihan tetap tampil supaya tidak menghalangi presensi
+      }
+    }
+
+    function updateTipePresensiOptions(disallow) {
+      const select = document.getElementById("tipePresensi");
+      if (disallow) {
+        if (optCheckInPosko && select.contains(optCheckInPosko)) select.removeChild(optCheckInPosko);
+        if (optPresensiKegiatan && select.contains(optPresensiKegiatan)) select.removeChild(optPresensiKegiatan);
+        if (select.value === "Check-In Posko" || select.value === "Presensi Kegiatan" || !select.value) {
+          select.value = "Check-Out Posko";
+        }
+        handleTipePresensi(select.value);
+      } else {
+        if (optCheckInPosko && !select.contains(optCheckInPosko)) select.insertBefore(optCheckInPosko, select.firstChild);
+        if (optPresensiKegiatan && !select.contains(optPresensiKegiatan)) {
+          const izinOption = select.querySelector('option[value="Izin"]');
+          select.insertBefore(optPresensiKegiatan, izinOption);
+        }
+      }
+    }
+
     function processAndPreviewFoto(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -719,6 +770,7 @@
           document.getElementById("previewContainer").classList.add("hidden");
           document.getElementById("uploadPlaceholder").classList.remove("hidden");
           base64Image = "";
+          checkPresensiHariIni();
         } else {
           showAlert(result.message || "Gagal menyimpan presensi.", "error");
         }
