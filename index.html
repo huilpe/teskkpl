@@ -436,7 +436,7 @@
   </footer>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzYc_45aaT9D-LdjS0C6dUurJZ3j7sBMkNinLQsm_-EuYn2iOwCSG6SjMXOoJNCLHDyOw/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyS98kG9SAnzC1_f6ZeYXw8wGNJHT3Ni9rD-ALpSmPucBdhcAMMuqXRl7obq_Jjz3xu/exec";
     
     const POSKO_LAT = -8.064567;
     const POSKO_LNG = 111.901234;
@@ -925,12 +925,24 @@
         const dplContainer = document.getElementById("dplListPiket");
 
         if (result.status === "success" && result.data.length > 0) {
-          const htmlContent = result.data.map(p => `
-            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm">
-              <span class="font-bold text-slate-800">${p.hari}</span>
-              <span class="font-medium text-slate-600">${p.petugas}</span>
-            </div>
-          `).join('');
+          const htmlContent = result.data.map(p => {
+            const namaAnggota = (p.anggota && p.anggota.length > 0) ? p.anggota : [];
+            const daftarNama = namaAnggota.length > 0
+              ? `<ul class="mt-2 pl-4 list-disc space-y-0.5 text-xs text-slate-600">
+                   ${namaAnggota.map(n => `<li>${n}</li>`).join('')}
+                 </ul>`
+              : `<p class="mt-2 text-xs text-slate-400 italic">Belum ada anggota terdaftar untuk kelompok ini.</p>`;
+
+            return `
+              <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-slate-800">${p.hari}</span>
+                  <span class="font-semibold text-blue-600">${p.petugas}</span>
+                </div>
+                ${daftarNama}
+              </div>
+            `;
+          }).join('');
 
           if(container) container.innerHTML = htmlContent;
           if(dplContainer) dplContainer.innerHTML = htmlContent;
